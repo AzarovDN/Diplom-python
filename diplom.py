@@ -31,22 +31,27 @@ def made_id(id):
 
 def user_data():
 
+    friends = '"friends": API.friends.get({' + '"user_id":' + f'{user.user_id}' + '})'
+    my_groups = '"my_groups": API.groups.get({' + '"user_id":' + f'{user.user_id}' + '})'
+
+    code = 'return {' + f'{friends}, {my_groups}' + '};'
     params = {
         'access_token': token,
         'v': '5.92',
-        'user_id': user.user_id
+        'code': code
     }
 
-    friends = requests.get('https://api.vk.com/method/friends.get', params)  # Получил json друзей
-    my_groups = requests.get('https://api.vk.com/method/groups.get', params)  # Получил json групп
+    response = requests.get('https://api.vk.com/method/execute?', params)
 
-    friends_list = friends.json()['response']['items']  # получил список друзей
-    my_group_list = my_groups.json()['response']['items']  # получил список групп
+    friends_list = response.json()['response']['friends']['items']
+    my_group_list = response.json()['response']['my_groups']['items']
 
     return friends_list, my_group_list
 
 
-def find_secret_group(friends_list):
+def find_secret_group(x, y):
+    friends_list = x
+    my_group_list = y
 
     all_friends_group = []
     counter = len(friends_list)
@@ -57,20 +62,24 @@ def find_secret_group(friends_list):
 
         backspace()
 
-        s = f'Осталось обработать {counter} друзей'  # string for output
+        s = f'Осталось обработать {counter} друзей'
         sys.stdout.write(s)
-        # time.sleep(0.2)  # sleep for 200ms
+        time.sleep(0.1)
 
+        friend_group = '"friend_group": API.groups.get({' + '"user_id":' + f'{friend}' + '})'
+        code = 'return {' + f'{friend_group}' + '};'
         params = {
             'access_token': token,
             'v': '5.92',
-            'user_id': friend
+            'code': code
         }
         try:
-            friend_group = requests.get('https://api.vk.com/method/groups.get', params)
-            friend_group_list = friend_group.json()['response']['items']
+            response = requests.get('https://api.vk.com/method/execute?', params)
+            friend_group_list = response.json()['response']['friend_group']['items']
             all_friends_group.extend(friend_group_list)
         except KeyError:
+            continue
+        except TypeError:
             continue
     print('\n')
 
@@ -78,6 +87,7 @@ def find_secret_group(friends_list):
 
     return results
 
+# Осталось прикрутить к последней функуции
 
 def write_file(results):
 
@@ -89,32 +99,37 @@ def write_file(results):
         counter -= 1
 
         backspace()
-        s = f'Осталось обработать {counter} групп'  # string for output
+        s = f'Осталось обработать {counter} групп'
         sys.stdout.write(s)
-        # time.sleep(0.2)  # sleep for 200ms
+        time.sleep(0.1)
+
+        group_info = '"group_info": API.groups.getById({' + '"group_id":' + f'{group_id}' + '})'
+        group_members = '"group_members": API.groups.getMembers({' + '"group_id":' + f'{group_id}' + '})'
+
+        code = 'return {' + f'{group_info}, {group_members}' + '};'
 
         params = {
             'access_token': token,
             'v': '5.92',
-            'group_id': group_id
+            'code': code
         }
         try:
-            group_info = requests.get('https://api.vk.com/method/groups.getById', params)
-            group_members = requests.get('https://api.vk.com/method/groups.getMembers', params)
+            response = requests.get('https://api.vk.com/method/execute?', params)
             group_info_dict = {
-                'name': group_info.json()['response'][0]['name'],
-                'gid': group_info.json()['response'][0]['id'],
-                'members_count': group_members.json()['response']['count']
+                'name': response.json()['response']['group_info'][0]['name'],
+                'gid': response.json()['response']['group_info'][0]['id'],
+                'members_count': response.json()['response']['group_members']['count']
             }
             out_data.append(group_info_dict)
         except KeyError:
-            print(f'Ошибка тут {group_info.json()}')
+            print(f'Ошибка тут {response.json()}')
             continue
 
     with open('groups.json', 'w', encoding='utf-8') as f:
         json.dump(out_data, f, ensure_ascii=False)
     print('\n')
     print('данные записаны в файл')
+
 
 if __name__ == '__main__':
 
@@ -123,10 +138,10 @@ if __name__ == '__main__':
     # id = '171691064'  # Шмаргунов
     # id = '9897521'  # Азаров
     id = '230412273'
-    
+
     user = User(made_id(id))
     friends_list, my_group_list = user_data()
-    result = find_secret_group(friends_list)
+    result = find_secret_group(friends_list, my_group_list)
     write_file(result)
 
 
