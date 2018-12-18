@@ -49,6 +49,44 @@ def user_data():
     return friends_list, my_group_list
 
 
+def find_friend_in_group(n, groups, friend):
+
+    all_mutural_group_list = []
+    counter = len(groups)
+    counter_group = 0
+
+    for group in groups:
+
+        counter -= 1
+        backspace()
+        s = f'Осталось обработать {counter} групп'
+        sys.stdout.write(s)
+        time.sleep(0.1)
+        mutural = '"mutural_list": API.groups.getMembers({' + '"group_id":' + f'{group}' + '})'
+        code = 'return {' + f'{mutural},' + '};'
+
+        params = {
+            'access_token': token,
+            'v': '5.92',
+            'code': code
+
+        }
+
+        try:
+            mutural_list = requests.get('https://api.vk.com/method/execute?', params).json()['response']['mutural_list']['items']
+            if len(set(friend) & set(mutural_list)) > 0 & len(set(friend) & set(mutural_list)) <= n:
+                counter_group += 1
+                all_mutural_group_list.append(group)
+        except KeyError:
+            continue
+        except TypeError:
+            continue
+        except AttributeError:
+            continue
+    print(len(all_mutural_group_list))
+    return all_mutural_group_list
+
+
 def find_secret_group(friends_list, my_group_list):
 
     all_friends_group = []
@@ -84,9 +122,7 @@ def find_secret_group(friends_list, my_group_list):
 
     results = set(my_group_list) - set(all_friends_group)
 
-    all_groups = set(my_group_list) | set(all_friends_group)
-
-    return results, all_groups
+    return results
 
 
 def write_file(writes_file):
@@ -99,7 +135,7 @@ def write_file(writes_file):
         counter -= 1
 
         backspace()
-        s = f'Осталось обработать {counter} групп'
+        s = f'Осталось записать {counter} групп'
         sys.stdout.write(s)
         time.sleep(0.1)
 
@@ -131,53 +167,15 @@ def write_file(writes_file):
     print('данные записаны в файл')
 
 
-def find_friend_in_group(n, groups, friend):
-
-    all_mutural_group_list = []
-    counter = len(groups)
-    counter_group = 0
-
-    for group in groups:
-
-        counter -= 1
-        backspace()
-        s = f'Осталось обработать {counter} групп'
-        sys.stdout.write(s)
-        time.sleep(0.1)
-        mutural = '"mutural_list": API.groups.getMembers({' + '"group_id":' + f'{group}' + '})'
-        code = 'return {' + f'{mutural},' + '};'
-
-        params = {
-            'access_token': token,
-            'v': '5.92',
-            'code': code
-
-        }
-
-        try:
-            mutural_list = requests.get('https://api.vk.com/method/execute?', params).json()['response']['mutural_list']['items']
-            if len(set(friend) & set(mutural_list)) > 0 & len(set(friend) & set(mutural_list)) <= n:
-                counter_group += 1
-                all_mutural_group_list.append(group)
-        except KeyError:
-            continue
-        except TypeError:
-            continue
-        except AttributeError:
-            continue
-
-    return all_mutural_group_list
-
-
 if __name__ == '__main__':
 
     token = 'ed1271af9e8883f7a7c2cefbfddfcbc61563029666c487b2f71a5227cce0d1b533c4af4c5b888633c06ae'
 
-    # id = input('Введите id пользователя или id: ')
+    id = input('Введите id пользователя или id: ')
     # id = input('Введите имя пользователя или его id: ')
     # id = '171691064'  # Шмаргунов
     # id = '9897521'  # Азаров
-    id = '230412273' # В этом id всего 25 друзей
+    # id = '230412273'  # В этом id всего 25 друзей
 
     user = User(made_id(id))
 
@@ -187,13 +185,12 @@ if __name__ == '__main__':
 
     if what_find == '1':
         friends_list, my_group_list = user_data()
-        result, all_groups_set = find_secret_group(friends_list, my_group_list)
+        result = find_secret_group(friends_list, my_group_list)
         write_file(result)
     elif what_find == '2':
         n = int(input('N - максимальное количество друзей в группе. Введите N: '))
         friends_list, my_group_list = user_data()
-        v, all_groups_set = find_secret_group(friends_list, my_group_list)
-        result = find_friend_in_group(n, all_groups_set, friends_list)
+        result = find_friend_in_group(n, my_group_list, friends_list)
         write_file(result)
     else:
         print('Вы ввели некорректные данные')
