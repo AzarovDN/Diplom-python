@@ -48,15 +48,15 @@ def made_id(id, default_params):
                 print('Программа перезапущена!!!')
                 work_program()
 
-        except NameError:
-            if id_json.json()['error']['error_code'] == 5:
-                print(f"В работе программы возникла ошибка {id_json.json()['error']['error_msg']}")
-                print('Введите корректное имя пользователья. Программа перезапущена')
-                work_program()
-            else:
-                print('Ошибка', id_json.json()['error']['error_msg'])
-                print('Программа перезапущена!!!')
-                work_program()
+        # except NameError:
+        #     if id_json.json()['error']['error_code'] == 5:
+        #         print(f"В работе программы возникла ошибка {id_json.json()['error']['error_msg']}")
+        #         print('Введите корректное имя пользователья. Программа перезапущена')
+        #         work_program()
+        #     else:
+        #         print('Ошибка', id_json.json()['error']['error_msg'])
+        #         print('Программа перезапущена!!!')
+        #         work_program()
 
     return id
 
@@ -124,6 +124,7 @@ def find_secret_group(friends_list, my_group_list,default_params):
                 continue
             else:
                 print('Ошибка', response.json()['error']['error_msg'])
+                continue
 
     print('\n')
     results = set(my_group_list) - set(all_friends_group)
@@ -162,13 +163,16 @@ def find_friend_in_group(n, groups, friend, default_params):
                     counter_group += 1
                     all_mutural_group_list.append(group)
                 continue
+            else:
+                print('Ошибка', mutural_list.json()['error']['error_msg'])
+                continue
         except TypeError:
             if mutural_list.json()['execute_errors'][0]['error_code'] == 30:
                 print('\n', f'Закрытый доступ в профиль {friend}')
             continue
-        except AttributeError:
-            print('AttributeError в find_friend_in_group')
-            continue
+        # except AttributeError:
+        #     print('AttributeError в find_friend_in_group')
+        #     continue
 
     print(len(all_mutural_group_list))
     return all_mutural_group_list
@@ -183,8 +187,8 @@ def write_file(writes_file, default_params):
 
         counter -= 1
 
-
         backspace()
+
         s = f'Осталось записать {counter} групп'
         sys.stdout.write(s)
 
@@ -213,7 +217,11 @@ def write_file(writes_file, default_params):
                     'gid': response.json()['response']['group_info'][0]['id'],
                     'members_count': response.json()['response']['group_members']['count']
                 }
-            continue
+                out_data.append(group_info_dict)
+                continue
+            else:
+                print('Ошибка', response.json()['error']['error_msg'])
+                continue
 
     with open('groups.json', 'w', encoding='utf-8') as f:
         json.dump(out_data, f, ensure_ascii=False)
