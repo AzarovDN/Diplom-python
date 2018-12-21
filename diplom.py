@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import sys
+import logging
 
 
 class User:
@@ -36,16 +37,17 @@ def made_id(id, default_params):
 
         except KeyError:
             if id_json.json()['error']['error_code'] == 5:
-                print(f"В работе программы возникла ошибка {id_json.json()['error']['error_msg']}")
-                print('Программа перезапущенна!!!')
+                logging.error(f"Ошибка в запросе {id_json.json()['error']['error_msg']}")
+                print('Программа перезапущенна из-за ошибки!!!')
                 work_program()
             elif id_json.json()['error']['error_code'] == 113:
-                print('Введите корректное имя пользователя')
+                logging.error(f"{id_json.json()['error']['error_msg']}")
+                print('Имя пользователя введено некорректно')
                 print('Программа перезапущена!!!')
                 work_program()
             else:
-                print('Ошибка', id_json.json()['error']['error_msg'])
-                print('Программа перезапущена!!!')
+                logging.error(f"Ошибка в запросе {id_json.json()['error']['error_msg']}")
+                print('Программа перезапущена из-за ошибки')
                 work_program()
 
         # except NameError:
@@ -77,12 +79,12 @@ def user_data(default_params, user):
 
     except KeyError:
         if response.json()['error']['error_code'] == 5:
-            print(f"В работе программы возникла ошибка {response.json()['error']['error_msg']}")
-            print('Программа перезапущенна!!!')
+            logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
+            print('Программа перезапущенна из-за ошибки!!!')
             work_program()
         else:
-            print('Ошибка', response.json()['error']['error_msg'])
-            print('Программа перезапущена!!!')
+            logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
+            print('Программа перезапущена из-за ошибки')
             work_program()
 
     return friends_list, my_group_list
@@ -113,17 +115,18 @@ def find_secret_group(friends_list, my_group_list,default_params):
             all_friends_group.extend(friend_group_list)
         except TypeError:
             if response.json()['execute_errors'][0]['error_code'] == 30:
-                print('\n', f'Закрытый доступ в профиль {friend}')
+                logging.error(f'Закрытый доступ в профиль {friend}, {response.json()}')
             continue
         except KeyError:
             if response.json()['error']['error_code'] == 6:
+                logging.error(f'Превышение запросов API')
                 time.sleep(0.5)
                 response = requests.get('https://api.vk.com/method/execute?', params)
                 friend_group_list = response.json()['response']['friend_group']['items']
                 all_friends_group.extend(friend_group_list)
                 continue
             else:
-                print('Ошибка', response.json()['error']['error_msg'])
+                logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
                 continue
 
     print('\n')
@@ -131,6 +134,7 @@ def find_secret_group(friends_list, my_group_list,default_params):
 
     return results
 
+# Вот тут остановился
 
 def find_friend_in_group(n, groups, friend, default_params):
 
@@ -157,6 +161,7 @@ def find_friend_in_group(n, groups, friend, default_params):
                 all_mutural_group_list.append(group)
         except KeyError:
             if mutural_list.json()['error']['error_code'] == 6:
+                logging.error(f'Превышение запросов API')
                 time.sleep(0.5)
                 mutural_list = requests.get('https://api.vk.com/method/execute?', params).json()['response']['mutural_list']['items']
                 if len(set(friend) & set(mutural_list)) > 0 & len(set(friend) & set(mutural_list)) <= n:
@@ -164,11 +169,11 @@ def find_friend_in_group(n, groups, friend, default_params):
                     all_mutural_group_list.append(group)
                 continue
             else:
-                print('Ошибка', mutural_list.json()['error']['error_msg'])
+                logging.error(f"Ошибка в запросе {mutural_list.json()['error']['error_msg']}")
                 continue
         except TypeError:
             if mutural_list.json()['execute_errors'][0]['error_code'] == 30:
-                print('\n', f'Закрытый доступ в профиль {friend}')
+                logging.error(f'Закрытый доступ в профиль {friend}')
             continue
         # except AttributeError:
         #     print('AttributeError в find_friend_in_group')
@@ -210,6 +215,7 @@ def write_file(writes_file, default_params):
             out_data.append(group_info_dict)
         except KeyError:
             if response.json()['error']['error_code'] == 6:
+                logging.error(f'Превышение запросов API')
                 time.sleep(0.5)
                 response = requests.get('https://api.vk.com/method/execute?', params)
                 group_info_dict = {
@@ -220,7 +226,7 @@ def write_file(writes_file, default_params):
                 out_data.append(group_info_dict)
                 continue
             else:
-                print('Ошибка', response.json()['error']['error_msg'])
+                logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
                 continue
 
     with open('groups.json', 'w', encoding='utf-8') as f:
@@ -259,30 +265,13 @@ def work_program():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', filename=u'mylog.log')
+
     work_program()
-    # default_params = take_params()
-    #
-    # id = input('Введите id пользователя или id: ')
-    # # id = input('Введите имя пользователя или его id: ')
+
     # # id = '171691064'  # Шмаргунов
     # # id = '9897521'  # Азаров
     # # id = '230412273'  # В этом id всего 25 друзей
-    #
-    # user = User(made_id(id))
-    #
-    # print('Поиск секретных групп пользователя - 1')
-    # print('Поиск общих групп с друзьями - 2')
-    # what_find = input('Выберите режим поиска: ')
-    #
-    # if what_find == '1':
-    #     search_for_secret_groups()
-    # elif what_find == '2':
-    #     search_for_common_groups()
-    # else:
-    #     print('Вы ввели некорректные данные')
-    #
-    # # user = User(230412273)
-    # # search_for_secret_groups()
 
 
 
