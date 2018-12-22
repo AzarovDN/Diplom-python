@@ -50,16 +50,6 @@ def made_id(id, default_params):
                 print('Программа перезапущена из-за ошибки')
                 work_program()
 
-        # except NameError:
-        #     if id_json.json()['error']['error_code'] == 5:
-        #         print(f"В работе программы возникла ошибка {id_json.json()['error']['error_msg']}")
-        #         print('Введите корректное имя пользователья. Программа перезапущена')
-        #         work_program()
-        #     else:
-        #         print('Ошибка', id_json.json()['error']['error_msg'])
-        #         print('Программа перезапущена!!!')
-        #         work_program()
-
     return id
 
 
@@ -90,7 +80,7 @@ def user_data(default_params, user):
     return friends_list, my_group_list
 
 
-def find_secret_group(friends_list, my_group_list,default_params):
+def find_secret_group(friends_list, my_group_list, default_params):
 
     all_friends_group = []
     counter = len(friends_list)
@@ -115,7 +105,7 @@ def find_secret_group(friends_list, my_group_list,default_params):
             all_friends_group.extend(friend_group_list)
         except TypeError:
             if response.json()['execute_errors'][0]['error_code'] == 30:
-                logging.error(f'Закрытый доступ в профиль {friend}, {response.json()}')
+                logging.error(f'Закрытый доступ в профиль {friend}')
             continue
         except KeyError:
             if response.json()['error']['error_code'] == 6:
@@ -134,53 +124,88 @@ def find_secret_group(friends_list, my_group_list,default_params):
 
     return results
 
-# Вот тут остановился
 
 def find_friend_in_group(n, groups, friend, default_params):
-
-    all_mutural_group_list = []
+    all_mutual_group_list = []
     counter = len(groups)
     counter_group = 0
 
     for group in groups:
-
+        mutual_list = []
         counter -= 1
-        backspace()
+        # backspace()
         s = f'Осталось обработать {counter} групп'
         sys.stdout.write(s)
-        mutural = '"mutural_list": API.groups.getMembers({' + '"group_id":' + f'{group}' + '})'
-        code = 'return {' + f'{mutural},' + '};'
+
+        code = ''' 
+        var mutual_list = [];
+        var count;
+        var offset = 1000;
+        while (offset <= 25000) {
+            var resp = API.groups.getMembers({"group_id":''' + str(group) + ''', "offset": offset});
+            mutual_list = mutual_list + resp.items;
+            count = resp.count;
+            offset = offset + 1000;
+        };
+        return {"count": count, "mutual_list": mutual_list}; 
+        '''
 
         params = default_params
         params['code'] = code
 
         try:
-            mutural_list = requests.get('https://api.vk.com/method/execute?', params).json()['response']['mutural_list']['items']
-            if len(set(friend) & set(mutural_list)) > 0 & len(set(friend) & set(mutural_list)) <= n:
+            response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+            time.sleep(0.33)
+
+            members_in_group = 50000
+            # по умолчанию из группы берется 50000 человек, если нужно всех, раскомментируем строку ниже
+            # members_in_group = response['count']
+
+            mutual_list.extend(response['mutual_list'])
+
+            if members_in_group > 25000:
+                counter_iterations = members_in_group // 25000
+                print('\n')
+                for offset in range(25000, members_in_group, 25000):
+                    counter_iterations -= 1
+                    code = '''
+                            var mutual_list = [];
+                            var offset = ''' + str(offset) + ''';
+                            var i = ''' + str(offset + 25000) + ''';
+                            while (offset < i) {
+                                var resp = API.groups.getMembers({"group_id":''' + str(group) + ''', "offset": offset});
+                                mutual_list = mutual_list + resp.items;
+                                offset = offset + 1000;
+                            };
+                            return {"mutual_list": mutual_list}; 
+                            '''
+                    params['code'] = code
+                    response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+                    print(f'Осталось итераций {counter_iterations}')
+                    mutual_list.extend(response['mutual_list'])
+
+            if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
                 counter_group += 1
-                all_mutural_group_list.append(group)
+                all_mutual_group_list.append(group)
+
         except KeyError:
-            if mutural_list.json()['error']['error_code'] == 6:
+            if response['error']['error_code'] == 6:
                 logging.error(f'Превышение запросов API')
                 time.sleep(0.5)
-                mutural_list = requests.get('https://api.vk.com/method/execute?', params).json()['response']['mutural_list']['items']
-                if len(set(friend) & set(mutural_list)) > 0 & len(set(friend) & set(mutural_list)) <= n:
+                response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+                if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
                     counter_group += 1
-                    all_mutural_group_list.append(group)
+                    all_mutual_group_list.append(group)
                 continue
             else:
-                logging.error(f"Ошибка в запросе {mutural_list.json()['error']['error_msg']}")
+                logging.error(f"Ошибка в запросе {response['error']['error_msg']}")
                 continue
         except TypeError:
-            if mutural_list.json()['execute_errors'][0]['error_code'] == 30:
+            if response['execute_errors'][0]['error_code'] == 30:
                 logging.error(f'Закрытый доступ в профиль {friend}')
             continue
-        # except AttributeError:
-        #     print('AttributeError в find_friend_in_group')
-        #     continue
 
-    print(len(all_mutural_group_list))
-    return all_mutural_group_list
+    return all_mutual_group_list
 
 
 def write_file(writes_file, default_params):
