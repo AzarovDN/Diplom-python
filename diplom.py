@@ -252,6 +252,9 @@ def find_secret_group(friends_list, my_group_list, default_params):
                         time.sleep(0.33)
                         friend_groups_list.extend(response.json()['response']['friend_groups_list'])
                         all_friends_group.extend(friend_groups_list)
+                        st = f'Осталось обработать {counter} друзей Осталось итераций {counter_iterations}'
+                        sys.stdout.write(st)
+
                     except KeyError:
                         if response['error']['error_code'] == 6:
                             logging.error(f'Превышение запросов API')
@@ -317,6 +320,7 @@ def find_friend_in_group(n, groups, friend, default_params):
             time.sleep(0.33)
 
             members_in_group = 50000
+
             # по умолчанию из группы берется 50000 человек, если нужно всех, раскомментируем строку ниже, комментируем выше
             # members_in_group = response['count']
 
@@ -324,7 +328,6 @@ def find_friend_in_group(n, groups, friend, default_params):
 
             if members_in_group > 25000:
                 counter_iterations = members_in_group // 25000
-                print('\n')
                 for offset in range(25000, members_in_group, 25000):
                     counter_iterations -= 1
                     code = '''
@@ -341,7 +344,10 @@ def find_friend_in_group(n, groups, friend, default_params):
                     params['code'] = code
                     response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
                     time.sleep(0.33)
-                    print(f'Осталось итераций {counter_iterations}')
+                    backspace()
+                    st = f'Осталось записать {counter} групп Осталось итераций в группе {counter_iterations}'
+                    # print(st)
+                    sys.stdout.write(st)
                     mutual_list.extend(response['mutual_list'])
 
             if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
