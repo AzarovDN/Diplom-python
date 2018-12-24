@@ -40,11 +40,13 @@ def made_id(id, default_params):
                 logging.error(f"Ошибка в запросе {id_json.json()['error']['error_msg']}")
                 print('Программа перезапущенна из-за ошибки!!!')
                 work_program()
+
             elif id_json.json()['error']['error_code'] == 113:
                 logging.error(f"{id_json.json()['error']['error_msg']}")
                 print('Имя пользователя введено некорректно')
                 print('Программа перезапущена!!!')
                 work_program()
+
             else:
                 logging.error(f"Ошибка в запросе {id_json.json()['error']['error_msg']}")
                 print('Программа перезапущена из-за ошибки')
@@ -76,6 +78,7 @@ def user_data(default_params, user):
 
     params = default_params
     params['code'] = code
+
     try:
         response = requests.get('https://api.vk.com/method/execute?', params)
         time.sleep(0.33)
@@ -85,6 +88,7 @@ def user_data(default_params, user):
         if count > 125000:
             counter_iterations = count // 125000
             print('\n')
+
             for offset in range(125000, count, 125000):
                 counter_iterations -= 1
                 code = '''
@@ -99,6 +103,7 @@ def user_data(default_params, user):
                     return {"friends_list": friends_list}; 
                     '''
                 params['code'] = code
+
                 try:
                     response = requests.get('https://api.vk.com/method/execute?', params)
                     time.sleep(0.33)
@@ -115,6 +120,7 @@ def user_data(default_params, user):
                         continue
 
     except KeyError:
+
         if response.json()['error']['error_code'] == 5:
             logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
             print('Программа перезапущенна из-за ошибки!!!')
@@ -151,6 +157,7 @@ def user_data(default_params, user):
         if count > 25000:
             counter_iterations = count // 25000
             print('\n')
+
             for offset in range(25000, count, 25000):
                 counter_iterations -= 1
                 code = '''
@@ -165,11 +172,13 @@ def user_data(default_params, user):
                         return {"my_group_list": my_group_list}; 
                         '''
                 params['code'] = code
+
                 try:
                     response = requests.get('https://api.vk.com/method/execute?', params)
                     my_group_list.extend(response.json()['response']['my_group_list'])
                     print(f'Осталось итераций {counter_iterations}')
                     time.sleep(0.33)
+
                 except KeyError:
                     if response['error']['error_code'] == 6:
                         logging.error(f'Превышение запросов API')
@@ -220,6 +229,7 @@ def find_secret_group(friends_list, my_group_list, default_params):
                     };
                 return {"count": count, "friend_groups_list": friend_groups_list}; 
                 '''
+
         params = default_params
         params['code'] = code
 
@@ -233,6 +243,7 @@ def find_secret_group(friends_list, my_group_list, default_params):
             if count > 25000:
                 counter_iterations = count // 25000
                 print('\n')
+
                 for offset in range(25000, count, 25000):
                     counter_iterations -= 1
                     code = '''
@@ -246,7 +257,9 @@ def find_secret_group(friends_list, my_group_list, default_params):
                                 };
                             return {"friend_groups_list": friend_groups_list}; 
                             '''
+
                     params['code'] = code
+
                     try:
                         response = requests.get('https://api.vk.com/method/execute?', params)
                         time.sleep(0.33)
@@ -269,6 +282,7 @@ def find_secret_group(friends_list, my_group_list, default_params):
             if response.json()['execute_errors'][0]['error_code'] == 30:
                 logging.error(f'Закрытый доступ в профиль {friend}')
             continue
+
         except KeyError:
             if response.json()['error']['error_code'] == 6:
                 logging.error(f'Превышение запросов API')
@@ -277,6 +291,7 @@ def find_secret_group(friends_list, my_group_list, default_params):
                 all_friends_group.extend(friend_groups_list)
                 time.sleep(0.33)
                 continue
+
             else:
                 logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
                 continue
@@ -288,6 +303,7 @@ def find_secret_group(friends_list, my_group_list, default_params):
 
 
 def find_friend_in_group(n, groups, friend, default_params):
+
     all_mutual_group_list = []
     counter = len(groups)
     counter_group = 0
@@ -328,6 +344,7 @@ def find_friend_in_group(n, groups, friend, default_params):
 
             if members_in_group > 25000:
                 counter_iterations = members_in_group // 25000
+
                 for offset in range(25000, members_in_group, 25000):
                     counter_iterations -= 1
                     code = '''
@@ -346,7 +363,6 @@ def find_friend_in_group(n, groups, friend, default_params):
                     time.sleep(0.33)
                     backspace()
                     st = f'Осталось записать {counter} групп Осталось итераций в группе {counter_iterations}'
-                    # print(st)
                     sys.stdout.write(st)
                     mutual_list.extend(response['mutual_list'])
 
@@ -360,13 +376,16 @@ def find_friend_in_group(n, groups, friend, default_params):
                 time.sleep(0.5)
                 response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
                 time.sleep(0.33)
+
                 if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
                     counter_group += 1
                     all_mutual_group_list.append(group)
                 continue
+
             else:
                 logging.error(f"Ошибка в запросе {response['error']['error_msg']}")
                 continue
+
         except TypeError:
             if response['execute_errors'][0]['error_code'] == 30:
                 logging.error(f'Закрытый доступ в профиль {friend}')
@@ -406,6 +425,7 @@ def write_file(writes_file, default_params):
                 'members_count': response.json()['response']['group_members']['count']
             }
             out_data.append(group_info_dict)
+
         except KeyError:
             if response.json()['error']['error_code'] == 6:
                 logging.error(f'Превышение запросов API')
@@ -419,6 +439,7 @@ def write_file(writes_file, default_params):
                 }
                 out_data.append(group_info_dict)
                 continue
+
             else:
                 logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
                 continue
@@ -426,7 +447,7 @@ def write_file(writes_file, default_params):
     with open('groups.json', 'w', encoding='utf-8') as f:
         json.dump(out_data, f, ensure_ascii=False)
     print('\n')
-    print('данные записаны в файл')
+    print('Данные записаны в файл.')
 
 
 def search_for_secret_groups(default_params, user):
@@ -460,7 +481,6 @@ def work_program():
 
 if __name__ == '__main__':
     logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', filename=u'mylog.log')
-
     work_program()
 
     # # id = '171691064'  # Шмаргунов
