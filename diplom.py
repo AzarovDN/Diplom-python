@@ -236,7 +236,6 @@ def find_friend_in_group(n, my_group_list, friends_list, default_params):
 
         try:
             response = requests.get('https://api.vk.com/method/execute?', params).json()
-            print(response)
             time.sleep(0.33)
 
             count = response['response']['count']
@@ -398,4 +397,4 @@ if __name__ == '__main__':
 
     # # id = '171691064'  # Шмаргунов
     # # id = '9897521'  # Азаров
-    # # id = '230412273'  # В этом id всего 25 друзей
+    # # id = '171691064'  # В этом id всего 25 друзей
