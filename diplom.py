@@ -84,6 +84,8 @@ def user_data(default_params, user):
         time.sleep(0.33)
         friends_list.extend(response.json()['response']['friends_list'])
         count = response.json()['response']['count']
+        if count is None:
+            count = 0
 
         if count > 125000:
             counter_iterations = count // 125000
@@ -153,6 +155,8 @@ def user_data(default_params, user):
         my_group_list.extend(response.json()['response']['my_group_list'])
         count = response.json()['response']['count']
         time.sleep(0.33)
+        if count is None:
+            count = 0
 
         if count > 25000:
             counter_iterations = count // 25000
@@ -202,131 +206,27 @@ def user_data(default_params, user):
     return friends_list, my_group_list
 
 
-def find_secret_group(friends_list, my_group_list, default_params):
+def find_friend_in_group(n, my_group_list, friends_list, default_params):
 
-    all_friends_group = []
-    counter = len(friends_list)
-
-    for friend in friends_list:
-        friend_groups_list = []
-        counter -= 1
-        backspace()
-        s = f'Осталось обработать {counter} друзей'
-        sys.stdout.write(s)
-
-        code = '''
-                var friend_groups_list = [];
-                var count;
-                var offset = 1000;
-                while (offset <= 25000){
-                    var friend_groups = API.groups.get({"user_id":''' + str(friend) + '''});;
-                    friend_groups_list = friend_groups_list + friend_groups.items;
-                        count = friend_groups.count;
-                        offset = offset + 1000;
-                        if (count < offset){
-                            offset = 26000; 
-                        };    
-                    };
-                return {"count": count, "friend_groups_list": friend_groups_list}; 
-                '''
-
-        params = default_params
-        params['code'] = code
-
-        try:
-            response = requests.get('https://api.vk.com/method/execute?', params)
-            time.sleep(0.33)
-            friend_groups_list.extend(response.json()['response']['friend_groups_list'])
-            count = response.json()['response']['count']
-            all_friends_group.extend(friend_groups_list)
-
-            if count > 25000:
-                counter_iterations = count // 25000
-                print('\n')
-
-                for offset in range(25000, count, 25000):
-                    counter_iterations -= 1
-                    code = '''
-                            var friend_groups_list = [];
-                            var offset = ''' + str(offset) + ''';
-                            var i = ''' + str(offset + 25000) + ''';
-                            while (offset <= i){
-                                var friend_groups = API.groups.get({"user_id":''' + str(friend) + '''});;
-                                friend_groups_list = friend_groups_list + friend_groups.items;                                            
-                                    offset = offset + 1000;
-                                };
-                            return {"friend_groups_list": friend_groups_list}; 
-                            '''
-
-                    params['code'] = code
-
-                    try:
-                        response = requests.get('https://api.vk.com/method/execute?', params)
-                        time.sleep(0.33)
-                        friend_groups_list.extend(response.json()['response']['friend_groups_list'])
-                        all_friends_group.extend(friend_groups_list)
-                        st = f'Осталось обработать {counter} друзей Осталось итераций {counter_iterations}'
-                        sys.stdout.write(st)
-
-                    except KeyError:
-                        if response['error']['error_code'] == 6:
-                            logging.error(f'Превышение запросов API')
-                            time.sleep(0.5)
-                            response = requests.get('https://api.vk.com/method/execute?', params)
-                            time.sleep(0.33)
-                            friend_groups_list.extend(response.json()['response']['friend_groups_list'])
-                            all_friends_group.extend(friend_groups_list)
-                            continue
-
-        except TypeError:
-            if response.json()['execute_errors'][0]['error_code'] == 30:
-                logging.error(f'Закрытый доступ в профиль {friend}')
-            continue
-
-        except KeyError:
-            if response.json()['error']['error_code'] == 6:
-                logging.error(f'Превышение запросов API')
-                time.sleep(0.33)
-                friend_groups_list.extend(response.json()['response']['friend_groups_list'])
-                all_friends_group.extend(friend_groups_list)
-                time.sleep(0.33)
-                continue
-
-            else:
-                logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
-                continue
-
-    print('\n')
-    results = set(my_group_list) - set(all_friends_group)
-
-    return results
-
-
-def find_friend_in_group(n, groups, friend, default_params):
-
-    all_mutual_group_list = []
-    counter = len(groups)
+    all_group_list = []
+    counter = len(my_group_list)
     counter_group = 0
 
-    for group in groups:
-        mutual_list = []
+    for group in my_group_list:
+        members_list = []
         counter -= 1
         backspace()
-        s = f'Осталось обработать {counter} групп'
+        s = f'Осталось обработать {counter} групп.'
         sys.stdout.write(s)
 
         code = ''' 
-        var mutual_list = [];
-        var count;
-        var offset = 1000;
-        while (offset <= 25000) {
-            var resp = API.groups.getMembers({"group_id":''' + str(group) + ''', "offset": offset});
-            mutual_list = mutual_list + resp.items;
-            count = resp.count;
-            offset = offset + 1000;
-        };
-        return {"count": count, "mutual_list": mutual_list}; 
-        '''
+                var members_list = [];
+                var count;
+                var resp = API.groups.getMembers({"group_id":''' + str(group) + '''});
+                members_list = members_list + resp.items;
+                count = resp.count;
+                return {"count": count, "members_list": members_list}; 
+                '''
 
         params = default_params
         params['code'] = code
@@ -335,40 +235,42 @@ def find_friend_in_group(n, groups, friend, default_params):
             response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
             time.sleep(0.33)
 
-            members_in_group = 50000
+            count = response['count']
+            if count is None:
+                count = 0
 
-            # по умолчанию из группы берется 50000 человек, если нужно всех, раскомментируем строку ниже, комментируем выше
-            # members_in_group = response['count']
+            members_list.extend(response['members_list'])
 
-            mutual_list.extend(response['mutual_list'])
+            if count > 1000:
+                counter_iterations = (count // 25000) + 1
 
-            if members_in_group > 25000:
-                counter_iterations = members_in_group // 25000
-
-                for offset in range(25000, members_in_group, 25000):
+                for offset in range(1000, count, 25000):
+                    backspace()
+                    s = f'Осталось обработать {counter} групп. Осталось итераций в группе {counter_iterations}'
+                    sys.stdout.write(s)
                     counter_iterations -= 1
                     code = '''
-                            var mutual_list = [];
+                            var members_list = [];
                             var offset = ''' + str(offset) + ''';
                             var i = ''' + str(offset + 25000) + ''';
                             while (offset < i) {
                                 var resp = API.groups.getMembers({"group_id":''' + str(group) + ''', "offset": offset});
-                                mutual_list = mutual_list + resp.items;
+                                members_list = members_list + resp.items;
                                 offset = offset + 1000;
                             };
-                            return {"mutual_list": mutual_list}; 
+                            return {"members_list": members_list}; 
                             '''
                     params['code'] = code
                     response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
                     time.sleep(0.33)
-                    backspace()
-                    st = f'Осталось записать {counter} групп Осталось итераций в группе {counter_iterations}'
-                    sys.stdout.write(st)
-                    mutual_list.extend(response['mutual_list'])
+                    members_list.extend(response['members_list'])
 
-            if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
+            if (len(set(friends_list) & set(members_list)) > 0) & (len(set(friends_list) & set(members_list)) <= n):
                 counter_group += 1
-                all_mutual_group_list.append(group)
+                all_group_list.append(group)
+
+            elif (n == 0) & ((len(set(friends_list) & set(members_list))) == 0):
+                all_group_list.append(group)
 
         except KeyError:
             if response['error']['error_code'] == 6:
@@ -377,9 +279,12 @@ def find_friend_in_group(n, groups, friend, default_params):
                 response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
                 time.sleep(0.33)
 
-                if len(set(friend) & set(mutual_list)) > 0 & len(set(friend) & set(mutual_list)) <= n:
+                if (len(set(friends_list) & set(members_list)) > 0) & (len(set(friends_list) & set(members_list)) <= n):
                     counter_group += 1
-                    all_mutual_group_list.append(group)
+                    all_group_list.append(group)
+
+                elif (n == 0) & ((len(set(friends_list) & set(members_list))) == 0):
+                    all_group_list.append(group)
                 continue
 
             else:
@@ -388,10 +293,10 @@ def find_friend_in_group(n, groups, friend, default_params):
 
         except TypeError:
             if response['execute_errors'][0]['error_code'] == 30:
-                logging.error(f'Закрытый доступ в профиль {friend}')
+                logging.error(f'Закрытый доступ в профиль {friends_list}')
             continue
 
-    return all_mutual_group_list
+    return all_group_list
 
 
 def write_file(writes_file, default_params):
@@ -452,13 +357,13 @@ def write_file(writes_file, default_params):
 
 def search_for_secret_groups(default_params, user):
     friends_list, my_group_list = user_data(default_params, user)
-    result = find_secret_group(friends_list, my_group_list, default_params)
+    result = find_friend_in_group(0, my_group_list, friends_list, default_params)
     write_file(result, default_params)
 
 
-def search_for_common_groups(default_params,user):
+def search_for_common_groups(default_params, user):
     n = int(input('N - максимальное количество друзей в группе. Введите N: '))
-    friends_list, my_group_list = user_data(default_params,user)
+    friends_list, my_group_list = user_data(default_params, user)
     result = find_friend_in_group(n, my_group_list, friends_list, default_params)
     write_file(result, default_params)
 
@@ -480,17 +385,10 @@ def work_program():
 
 
 if __name__ == '__main__':
+
     logging.basicConfig(format=u'%(levelname)-8s [%(asctime)s] %(message)s', filename=u'mylog.log')
     work_program()
 
     # # id = '171691064'  # Шмаргунов
     # # id = '9897521'  # Азаров
     # # id = '230412273'  # В этом id всего 25 друзей
-
-
-
-
-
-
-
-
