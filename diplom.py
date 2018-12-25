@@ -33,6 +33,7 @@ def made_id(id, default_params):
 
         try:
             id_json = requests.get('https://api.vk.com/method/users.get', params)
+            time.sleep(0.33)
             id = id_json.json()['response'][0]['id']
 
         except KeyError:
@@ -234,14 +235,15 @@ def find_friend_in_group(n, my_group_list, friends_list, default_params):
         params['code'] = code
 
         try:
-            response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+            response = requests.get('https://api.vk.com/method/execute?', params).json()
+            print(response)
             time.sleep(0.33)
 
-            count = response['count']
+            count = response['response']['count']
             if count is None:
                 count = 0
 
-            members_list.extend(response['members_list'])
+            members_list.extend(response['response']['members_list'])
 
             if count > 1000:
                 counter_iterations = (count // 25000) + 1
@@ -263,9 +265,9 @@ def find_friend_in_group(n, my_group_list, friends_list, default_params):
                             return {"members_list": members_list}; 
                             '''
                     params['code'] = code
-                    response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+                    response = requests.get('https://api.vk.com/method/execute?', params).json()
                     time.sleep(0.33)
-                    members_list.extend(response['members_list'])
+                    members_list.extend(response['response']['members_list'])
 
             if (len(set(friends_list) & set(members_list)) > 0) & (len(set(friends_list) & set(members_list)) <= n):
                 counter_group += 1
@@ -278,8 +280,9 @@ def find_friend_in_group(n, my_group_list, friends_list, default_params):
             if response['error']['error_code'] == 6:
                 logging.error(f'Превышение запросов API')
                 time.sleep(0.5)
-                response = requests.get('https://api.vk.com/method/execute?', params).json()['response']
+                response = requests.get('https://api.vk.com/method/execute?', params).json()
                 time.sleep(0.33)
+                members_list.extend(response['response']['members_list'])
 
                 if (len(set(friends_list) & set(members_list)) > 0) & (len(set(friends_list) & set(members_list)) <= n):
                     counter_group += 1
@@ -294,7 +297,7 @@ def find_friend_in_group(n, my_group_list, friends_list, default_params):
                 continue
 
         except TypeError:
-            if response['execute_errors'][0]['error_code'] == 30:
+            if response['response']['execute_errors'][0]['error_code'] == 30:
                 logging.error(f'Закрытый доступ в профиль {friends_list}')
             continue
 
