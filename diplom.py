@@ -55,24 +55,17 @@ def made_id(id, default_params):
     return id
 
 
-def user_data(default_params, user):
+def get_friends_list(default_params, user):
 
     friends_list = []
-    my_group_list = []
 
     code = '''
     var friends_list = [];
     var count;
-    var offset = 5000;
-    while (offset <= 125000){
-        var friends = API.friends.get({"user_id": ''' + str(user.user_id) + '''});
-        friends_list = friends_list + friends.items;
-            count = friends.count;
-            offset = offset + 5000;
-            if (count < offset){
-                offset = 126000; 
-            };    
-        };
+    var offset = 0;
+    var friends = API.friends.get({"user_id": ''' + str(user.user_id) + '''});
+    friends_list = friends.items;
+    count = friends.count;
     return {"count": count, "friends_list": friends_list}; 
     '''
 
@@ -87,18 +80,18 @@ def user_data(default_params, user):
         if count is None:
             count = 0
 
-        if count > 125000:
+        if count > 5000:
             counter_iterations = count // 125000
             print('\n')
 
-            for offset in range(125000, count, 125000):
+            for offset in range(5000, count, 125000):
                 counter_iterations -= 1
                 code = '''
                     var friends_list = [];
                     var offset = ''' + str(offset) + ''';
                     var i = ''' + str(offset + 125000) + ''';
                     while (offset <= i){
-                        var friends = API.friends.get({"user_id": ''' + str(user.user_id) + '''});
+                        var friends = API.friends.get({"user_id": ''' + str(user.user_id) + ''', "offset": offset});
                         friends_list = friends_list + friends.items;
                             offset = offset + 5000;
                         };
@@ -129,25 +122,34 @@ def user_data(default_params, user):
             work_program()
 
         else:
-            logging.error(f"Ошибка в запросе {response.json()['error']['error_msg']}")
+            logging.error(f"Ошибка в запросе {response.json()}")
+            print('Программа перезапущена из-за ошибки')
+            work_program()
+    except TypeError:
+        if response.json()['execute_errors'][0]['error_code'] == 30:
+            logging.error(f"Ошибка в запросе {response.json()['execute_errors'][0]['error_msg']}")
+            print('Программа перезапущена из-за ошибки')
+            work_program()
+        else:
+            logging.error(f"Ошибка в запросе {response.json()}")
             print('Программа перезапущена из-за ошибки')
             work_program()
 
+    return friends_list
+
+
+def get_my_group_list(default_params, user):
+    my_group_list = []
     code = '''
         var my_group_list = [];
         var count;
-        var offset = 1000;
-        while (offset <= 25000){
-            var my_groups = API.groups.get({"user_id":''' + str(user.user_id) + '''});;
-            my_group_list = my_group_list + my_groups.items;
-                count = my_groups.count;
-                offset = offset + 1000;
-                if (count < offset){
-                    offset = 26000; 
-                };    
-            };
-        return {"count": count, "my_group_list": my_group_list}; 
+        var my_groups = API.groups.get({"user_id":''' + str(user.user_id) + '''});
+        my_group_list = my_groups.items;
+        count = my_groups.count;
+        return {"count": count, "my_group_list": my_group_list};  
         '''
+
+    params = default_params
     params['code'] = code
 
     try:
@@ -158,18 +160,18 @@ def user_data(default_params, user):
         if count is None:
             count = 0
 
-        if count > 25000:
+        if count > 5000:
             counter_iterations = count // 25000
             print('\n')
 
-            for offset in range(25000, count, 25000):
+            for offset in range(5000, count, 25000):
                 counter_iterations -= 1
                 code = '''
                         var my_group_list = [];
                         var offset = ''' + str(offset) + ''';
                         var i = ''' + str(offset + 25000) + ''';
                         while (offset <= i){
-                            var my_groups = API.groups.get({"user_id":''' + str(user.user_id) + '''});;
+                            var my_groups = API.groups.get({"user_id":''' + str(user.user_id) + ''', "offset": offset});
                             my_group_list = my_group_list + my_groups.items;
                                 offset = offset + 1000;   
                             };
@@ -203,7 +205,7 @@ def user_data(default_params, user):
             print('Программа перезапущена из-за ошибки')
             work_program()
 
-    return friends_list, my_group_list
+    return my_group_list
 
 
 def find_friend_in_group(n, my_group_list, friends_list, default_params):
@@ -356,14 +358,16 @@ def write_file(writes_file, default_params):
 
 
 def search_for_secret_groups(default_params, user):
-    friends_list, my_group_list = user_data(default_params, user)
+    friends_list = get_friends_list(default_params, user)
+    my_group_list = get_my_group_list(default_params, user)
     result = find_friend_in_group(0, my_group_list, friends_list, default_params)
     write_file(result, default_params)
 
 
 def search_for_common_groups(default_params, user):
     n = int(input('N - максимальное количество друзей в группе. Введите N: '))
-    friends_list, my_group_list = user_data(default_params, user)
+    friends_list = get_friends_list(default_params, user)
+    my_group_list = get_my_group_list(default_params, user)
     result = find_friend_in_group(n, my_group_list, friends_list, default_params)
     write_file(result, default_params)
 
